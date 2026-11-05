@@ -53,6 +53,7 @@ class Poller {
         this.errors = 0;            // backoff steps
         this.redefines = 0;         // definitions since the last good read
         this.definedAt = 0;
+        this.lastReply = '';        // the last reply's bytes (hex), for the screen while values are not readable
         this._wake = null;
     }
 
@@ -104,7 +105,11 @@ class Poller {
         return this.state;
     }
 
-    _send(req, timeoutMs) { return this.physical(req.sid, req.data, timeoutMs, req.accept); }
+    async _send(req, timeoutMs) {
+        const reply = await this.physical(req.sid, req.data, timeoutMs, req.accept);
+        this.lastReply = P.bytesHex([req.sid].concat(req.data)) + ' -> ' + (reply && reply.length ? P.bytesHex(reply) : 'no answer');
+        return reply;
+    }
 
     _fail(reason) {
         this.errors++;
@@ -194,6 +199,7 @@ class Poller {
             stale: this.state === 'reading' && this.misses >= STALE_MISSES,
             age: this.lastGood ? now - this.lastGood : null,
             mhd: this.mhd, profile: this.profile ? this.profile.name : null, seen: this.seen.slice(),
+            lastReply: this.lastReply,
         };
     }
 }

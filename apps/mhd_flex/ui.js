@@ -65,11 +65,13 @@ function draw(cv, G, t, v, LOGO) {
 
     const [text, colour] = note(v, t);
     cv.text(text, W / 2, 392, 26, colour, { align: 'center', font: 'bold', spacing: 1.5 });
-    if (v.state === 'unsupported-rom' && v.seen && v.seen.length) {
-        cv.text(v.seen.join('  '), W / 2, 418, 16, t.dim, { align: 'center', font: 'label', literal: true });
-    } else if (v.state === 'reading' && v.mhd && v.profile) {
-        cv.text(v.profile, W / 2, 418, 16, t.dim, { align: 'center', font: 'label', literal: true });
-    }
+    // the line under the note: the ids seen on an unknown ROM, why the loop is waiting, or the last exchange's bytes
+    // while a value is not readable (what the DME really answered), else the profile in use
+    const detail = v.state === 'unsupported-rom' && v.seen && v.seen.length ? v.seen.join('  ')
+        : v.state === 'error' ? [v.reason, v.lastReply].filter(Boolean).join('  ·  ')
+        : v.state === 'reading' && (v.active == null || v.can == null) && !v.demo ? v.lastReply
+        : v.state === 'reading' && v.mhd && v.profile ? v.profile : '';
+    if (detail) cv.text(detail, W / 2, 418, 16, t.dim, { align: 'center', font: 'label', literal: true });
 
     if (LOGO && LOGO.runs && LOGO.runs.length) {
         const y = G.pageBottom(cv) - G.MARGIN - LOGO.h;
