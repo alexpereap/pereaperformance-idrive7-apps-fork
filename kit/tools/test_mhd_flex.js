@@ -40,11 +40,14 @@ const MHD_MARKER = bytes('6F 04 4D 48 44 32 01 20 00 00 00 00 00 1C 06 00 00 42'
 /**
  * An in-memory DME at 0x12. kind: 'mhd' (the owner's ROM), 'stock' (no MHD), 'other' (MHD, another ROM),
  * 'quiet' (never answers). Options: lose = reads that answer 7F 22 31 before a good one; short = reply with
- * one data byte; values = [active, can]. Every reply is checked against the request's accept().
+ * one data byte; values = [active, can]; slots = the dynamic identifiers the DME has (F300..F303 like the
+ * owner's: any other answers 7F 2C 31, as F304 did on the car). Every reply is checked against the request's accept().
  */
 function dme(kind, o) {
     o = o || {};
-    const d = { calls: [], inflight: 0, maxInflight: 0, defined: false, lose: o.lose || 0, values: o.values || [85, 83] };
+    const d = { calls: [], inflight: 0, maxInflight: 0, defined: null, lose: o.lose || 0, values: o.values || [85, 83],
+        slots: o.slots || ['F300', 'F301', 'F302', 'F303'] };
+    const didOf = (data) => hex(data.slice(1, 3)).replace(' ', '');
     d.physical = async (target, sid, data, timeoutMs, accept) => {
         assert.strictEqual(target, 0x12);
         assert.ok(typeof accept === 'function', 'every request filters its reply');
@@ -61,17 +64,20 @@ function dme(kind, o) {
             }
             if (sid === 0x2C) {
                 assert.strictEqual(kind, 'mhd', 'only the known ROM may be defined');
-                if (data[0] === 0x03) { const was = d.defined; d.defined = false; return was ? [0x6C, 0x03, data[1], data[2]] : [0x7F, 0x2C, 0x31]; }
+                const did = didOf(data);
+                if (d.slots.indexOf(did) < 0) return [0x7F, 0x2C, 0x31];
+                if (data[0] === 0x03) { const was = d.defined === did; if (was) d.defined = null; return was ? [0x6C, 0x03, data[1], data[2]] : [0x7F, 0x2C, 0x31]; }
                 if (data[0] === 0x02) {
-                    assert.strictEqual(hex(data), '02 F3 04 14 B0 00 60 C2 01 B0 00 60 D2 01');
-                    d.defined = true; return [0x6C, 0x02, 0xF3, 0x04];
+                    assert.strictEqual(hex(data.slice(3)), '14 B0 00 60 C2 01 B0 00 60 D2 01');
+                    d.defined = did; return [0x6C, 0x02, data[1], data[2]];
                 }
             }
-            if (sid === 0x22 && data[0] === 0xF3 && data[1] === 0x04) {
-                if (d.lose > 0) { d.lose--; d.defined = false; }
-                if (!d.defined) return [0x7F, 0x22, 0x31];
-                if (o.short) return [0x62, 0xF3, 0x04, d.values[0]];
-                return [0x62, 0xF3, 0x04, d.values[0], d.values[1]];
+            if (sid === 0x22 && data[0] === 0xF3) {
+                const did = hex(data).replace(' ', '');
+                if (d.lose > 0) { d.lose--; d.defined = null; }
+                if (d.defined !== did) return [0x7F, 0x22, 0x31];
+                if (o.short) return [0x62, data[0], data[1], d.values[0]];
+                return [0x62, data[0], data[1], d.values[0], d.values[1]];
             }
             return [0x7F, sid, 0x11];
         })();
@@ -140,10 +146,11 @@ async function steps(p, n) { for (let i = 0; i < n; i++) await p.step(); return 
         assert.strictEqual(await steps(p, 1), 'defining');
         assert.strictEqual(await steps(p, 1), 'reading');
         assert.strictEqual(await steps(p, 1), 'reading');
-        assert.deepStrictEqual(d.calls, ['2F 04 4D 48 44', '22 F1 01', '22 F1 02', '2C 03 F3 04', '2C 02 F3 04 14 B0 00 60 C2 01 B0 00 60 D2 01', '22 F3 04']);
+        assert.deepStrictEqual(d.calls, ['2F 04 4D 48 44', '22 F1 01', '22 F1 02', '2C 03 F3 03', '2C 02 F3 03 14 B0 00 60 C2 01 B0 00 60 D2 01', '22 F3 03']);
         let v = p.view();
         assert.strictEqual(v.state, 'reading'); assert.strictEqual(v.active, 85); assert.strictEqual(v.can, 83);
         assert.strictEqual(v.profile, P.PROFILES[0].name);
+        assert.strictEqual(v.did, 'F303');
         assert.strictEqual(v.mhd.version, '0120');
         const t = themes.theme('m_tricolour');
         assert.deepStrictEqual(UI.note(v, t), ['Flex fuel active', UI.GO]);
@@ -208,7 +215,39 @@ async function steps(p, n) { for (let i = 0; i < n; i++) await p.step(); return 
         assert.strictEqual(d.calls.filter((c) => c.startsWith('2F')).length, probes + 1);
     }
 
-    /* ---------- a reply of the wrong length: someone else defined F304 ---------- */
+    /* ---------- the identifiers: F303 refused -> F301; all refused -> error; the car's F304 refusal ---------- */
+    {
+        const d = dme('mhd', { slots: ['F300', 'F301', 'F302'] }), p = poller(d);
+        await steps(p, 2);
+        assert.strictEqual(await steps(p, 1), 'defining', 'F303 refused: still defining, with the next identifier');
+        assert.strictEqual(p.did, 'F301');
+        assert.strictEqual(await steps(p, 1), 'reading');
+        assert.deepStrictEqual(d.calls.slice(3), ['2C 03 F3 03', '2C 02 F3 03 14 B0 00 60 C2 01 B0 00 60 D2 01', '2C 03 F3 01', '2C 02 F3 01 14 B0 00 60 C2 01 B0 00 60 D2 01']);
+        await steps(p, 1);
+        assert.deepStrictEqual([p.view().active, p.view().can, p.view().did], [85, 83, 'F301']);
+        assert.strictEqual(d.calls[d.calls.length - 1], '22 F3 01');
+    }
+    {
+        const d = dme('mhd', { slots: ['F300'] }), p = poller(d);
+        assert.strictEqual(await steps(p, 4), 'error', 'no identifier taken: error with backoff');
+        assert.ok(/out of range \(identifiers F303, F301\)/.test(p.reason), p.reason);
+        assert.strictEqual(d.calls.filter((c) => c.startsWith('2C 02')).length, 2);
+        p.clock.t += 5000; await steps(p, 2);     // probe, identify: the next definition starts the list over
+        assert.strictEqual(p.did, 'F303', 'after the backoff the list starts over');
+        assert.strictEqual(d.calls.filter((c) => c.startsWith('2C 02')).length, 2);
+    }
+    {
+        const d = dme('mhd'), p = poller(d, { config: { dynamicDid: 'F304' } });   // the first build on the car
+        assert.strictEqual(await steps(p, 3), 'error');
+        assert.ok(/definition refused: out of range/.test(p.reason), p.reason);
+        assert.ok(/2C02F30414B00060C201B00060D201 -> 7F2C31$/.test(p.view().lastReply), p.view().lastReply);
+    }
+    {
+        const p = poller(dme('mhd'), { config: { dynamicDids: ['f302'], dynamicDid: 'F300' } });
+        assert.deepStrictEqual(p.dids, ['F302', 'F300'], 'config: the list first, then the single one, upper case');
+    }
+
+    /* ---------- a reply of the wrong length: someone else defined our identifier ---------- */
     {
         const d = dme('mhd', { short: true }), p = poller(d);
         await steps(p, 3);
@@ -272,7 +311,7 @@ async function steps(p, n) { for (let i = 0; i < n; i++) await p.step(); return 
         ui: { image: async () => { frames++; }, onVisible() {}, isVisible: () => true, onClick() {}, text() {} },
         settings: { get: (k) => vals[k], onChange() {} },
         log: quiet,
-        spec: { config: { dynamicDid: 'F304', pollMs: 500 } },
+        spec: { config: { dynamicDids: ['F303', 'F301'], pollMs: 500 } },
         signals: { proxy: async () => { throw new Error('preview'); } },
         theme: () => themes.theme(vals.theme),
         canvas: (w, h) => new Recorder(w, h),

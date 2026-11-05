@@ -2,7 +2,7 @@
   "id": "mhd_flex",
   "title": "Flex Fuel",
   "description": "Ethanol content (Active and CAN) read from an MHD-flashed DME over the car's own diagnostic link, as two dials. Read-only; the addresses come from a ROM profile table",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "vendor": "custom",
   "loggingId": "OA9E",
   "iconGlyph": "E85",
@@ -48,7 +48,7 @@
     }
   ],
   "config": {
-    "dynamicDid": "F304",
+    "dynamicDids": ["F303", "F301"],
     "pollMs": 500,
     "readTimeoutMs": 1500,
     "probeTimeoutMs": 3000,

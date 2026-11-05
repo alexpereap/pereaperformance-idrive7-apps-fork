@@ -19,8 +19,8 @@ only reads; nothing is written to the car.
 |---|---|---|
 | Is MHD there? (ROM independent) | `2F 04 4D 48 44` ("MHD") | `6F 04 4D 48 44 32 ...` ("MHD2" + version); a stock DME refuses |
 | Which ROM? | `22 F1 01`, `22 F1 02` | the SVK entries; MHD keys its addresses by the program (`08 00 00 ...`, "PRGID") and calibration (`0D 00 00 ...`, "CALID") ones |
-| Define the identifier | `2C 03 F3 04` (clear), `2C 02 F3 04 14 B0 00 60 C2 01 B0 00 60 D2 01` | `6C 02 F3 04` |
-| Read, twice a second | `22 F3 04` | `62 F3 04 <active> <can>`: one byte each, percent |
+| Define the identifier | `2C 03 F3 03` (clear), `2C 02 F3 03 14 B0 00 60 C2 01 B0 00 60 D2 01` | `6C 02 F3 03` |
+| Read, twice a second | `22 F3 03` | `62 F3 03 <active> <can>`: one byte each, percent |
 
 This is how MHD's own app logs those two channels (captured with PCAPdroid on the phone while
 logging *Ethanol Content (Active)* and *(CAN)*, cross-checked against the exported CSV). Two
@@ -29,8 +29,11 @@ things to know:
 - **`0x23` ReadMemoryByAddress is refused** on this DME (`7F 23 10`), although it worked on an
   S58 in another capture. The dynamic identifier (`2C` by memory address, format `14`: 1-byte
   size, 4-byte address) is what works everywhere MHD does.
-- **MHD's app uses `F300`..`F303`** and clears them when it connects, so this app uses `F304`.
-  The DME forgets the definition at an ignition cycle (then `22 F3 04` answers `7F 22 31`): the
+- **The DME has four dynamic identifiers, `F300`..`F303`, and no more:** `2C 02 F304` is refused
+  with `7F 2C 31` (request out of range), as the first test on the car showed. MHD's app defines
+  `F300` (by identifier) and `F302` (by address) for a short channel list and clears all four when
+  it connects, so this app takes `F303`, and `F301` when `F303` is refused (config `dynamicDids`).
+  The DME forgets the definition at an ignition cycle (then `22 F3 03` answers `7F 22 31`): the
   app defines it again, at most 3 times in a row before it waits (5 s, 10 s, 20 s, 30 s) and
   starts over. The identifier is the DME's volatile table; nothing persists.
 
@@ -79,8 +82,12 @@ A capture holds your VIN (`22 F1 90`): keep it to yourself. `captures/` is in `.
 
 Both can be connected: every reply is filtered by its identifier, so MHD's `62 F3 00` answers
 never count as ours. A session of MHD's app that clears the dynamic identifiers costs this app
-one re-definition. While both poll, the head unit's transport is shared and may answer busy
-now and then (`LINK STALE` for a moment).
+one re-definition. The four identifiers are shared, though: while MHD's app logs a long channel
+list it may define `F303` (or `F301`) itself, and then the two take the identifier from each
+other in turn (this app sees a reply of the wrong length and defines again, up to 3 times, then
+waits). Close this app's screen while logging with MHD, or log with MHD while this app's screen
+is not shown: hidden, it sends nothing. While both poll, the head unit's transport is shared and
+may answer busy now and then (`LINK STALE` for a moment).
 
 ## Logo
 
@@ -135,7 +142,7 @@ python3 kit/tools/build.py mhd_flex
 ```
 
 ```sh
-node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.1.1.tgz
+node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.2.0.tgz
 ```
 
 The package lands in `<stick>/mgu-repo/local/` with a generated catalog; install it from the

@@ -9,8 +9,9 @@
  *   no-mhd           the DME refused the probe: no MHD on it (probed again every 30 s)
  *   identifying      22 F1 01 / F1 02 are out
  *   unsupported-rom  MHD is there but no profile has this ROM's addresses (checked again every 60 s)
- *   defining         2C 03 / 2C 02 F304 are out
- *   reading          22 F3 04 every pollMs; the values are live
+ *   defining         2C 03 / 2C 02 <did> are out: the first identifier of `dynamicDids` the DME takes
+ *                    (F303, then F301: this DME has F300..F303 only and answered 7F 2C 31 to F304)
+ *   reading          22 <did> every pollMs; the values are live
  *   error            something refused or went quiet: backoff 5 s, 10 s, 20 s, 30 s, then probe again
  *
  * Everything the loop sends comes from protocol.js; `physical(sid, data, timeoutMs, accept)` is the
@@ -20,7 +21,7 @@
  */
 const P = require('./protocol');
 
-const DEFAULTS = { dynamicDid: 'F304', pollMs: 500, readTimeoutMs: 1500, probeTimeoutMs: 3000, redefineLimit: 3 };
+const DEFAULTS = { dynamicDids: ['F303', 'F301'], pollMs: 500, readTimeoutMs: 1500, probeTimeoutMs: 3000, redefineLimit: 3 };
 const RETRY_NO_MHD_MS = 30000, RETRY_ROM_MS = 60000, PROBE_RETRY_MS = 2000, PROBE_FAILS = 5;
 const STALE_MISSES = 3, GIVE_UP_MISSES = 10, SLOW_POLL_MS = 1000, REDEFINE_GAP_MS = 1000;
 const BACKOFF_MS = 5000, BACKOFF_MAX_MS = 30000;
@@ -35,7 +36,11 @@ class Poller {
         this.profiles = o.profiles || P.PROFILES;
         this.sleep = o.sleep || ((ms) => new Promise((r) => { this._wake = r; setTimeout(r, ms); }));
         this.now = o.now || (() => Date.now());
-        this.did = String(this.cfg.dynamicDid || DEFAULTS.dynamicDid).toUpperCase();
+        // the identifiers to try, in order (config `dynamicDids`; a single `dynamicDid` is honoured too)
+        const given = o.config || {};
+        const list = [].concat(given.dynamicDids || [], given.dynamicDid || []).map((d) => String(d).toUpperCase());
+        this.dids = list.length ? list : DEFAULTS.dynamicDids.slice();
+        this.didIndex = 0;
         this.visible = true;
         this.paused = false;        // demo data on: nothing is sent
         this.running = false;
@@ -73,6 +78,8 @@ class Poller {
     linkChanged(on) { if (on && this.state === 'link-down') this.nextAt = 0; this.wake(); }
     setVisible(on) { this.visible = !!on; this.wake(); }
     setPaused(on) { this.paused = !!on; this.wake(); }
+
+    get did() { return this.dids[this.didIndex]; }
 
     _set(state, reason) {
         if (state !== this.state) this.log.info('mhd_flex: ' + this.state + ' -> ' + state + (reason ? ' (' + reason + ')' : ''));
@@ -158,7 +165,19 @@ class Poller {
         const clear = P.parseDefine(await this._send(P.clearRequest(this.did), this.cfg.readTimeoutMs), 0x03);
         if (!clear.ok && clear.nrc == null) { this._fail('no answer to the clear'); return; }    // a refusal (nothing defined) is fine
         const def = P.parseDefine(await this._send(P.defineRequest(this.did, this.profile), this.cfg.readTimeoutMs), 0x02);
-        if (!def.ok) { this._fail('definition refused: ' + def.reason); return; }
+        if (!def.ok && def.nrc === 0x31 && this.didIndex + 1 < this.dids.length) {
+            // this DME has no such identifier: the next candidate, right away
+            this.log.info('mhd_flex: identifier ' + this.did + ' refused (out of range), trying ' + this.dids[this.didIndex + 1]);
+            this.didIndex++;
+            this.reason = 'identifier ' + this.dids[this.didIndex - 1] + ' refused, trying ' + this.did;
+            return;
+        }
+        if (!def.ok) {
+            const tried = this.dids.slice(0, this.didIndex + 1).join(', ');
+            this.didIndex = 0;
+            this._fail('definition refused: ' + def.reason + (def.nrc === 0x31 ? ' (identifiers ' + tried + ')' : ''));
+            return;
+        }
         this.redefines++;
         this.definedAt = this.now();
         this.misses = 0;
@@ -199,7 +218,7 @@ class Poller {
             stale: this.state === 'reading' && this.misses >= STALE_MISSES,
             age: this.lastGood ? now - this.lastGood : null,
             mhd: this.mhd, profile: this.profile ? this.profile.name : null, seen: this.seen.slice(),
-            lastReply: this.lastReply,
+            did: this.did, lastReply: this.lastReply,
         };
     }
 }

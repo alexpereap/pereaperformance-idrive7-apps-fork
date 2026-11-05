@@ -70,7 +70,7 @@ function draw(cv, G, t, v, LOGO) {
     const detail = v.state === 'unsupported-rom' && v.seen && v.seen.length ? v.seen.join('  ')
         : v.state === 'error' ? [v.reason, v.lastReply].filter(Boolean).join('  ·  ')
         : v.state === 'reading' && (v.active == null || v.can == null) && !v.demo ? v.lastReply
-        : v.state === 'reading' && v.mhd && v.profile ? v.profile : '';
+        : v.state === 'reading' && v.mhd && v.profile ? v.profile + (v.did ? '  ·  ' + v.did : '') : '';
     if (detail) cv.text(detail, W / 2, 418, 16, t.dim, { align: 'center', font: 'label', literal: true });
 
     if (LOGO && LOGO.runs && LOGO.runs.length) {

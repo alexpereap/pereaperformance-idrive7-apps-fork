@@ -6,13 +6,15 @@
  *   detect MHD : 2F 04 4D 48 44 ("MHD")       -> 6F 04 4D 48 44 32 ..  ("MHD2" + version); an untuned DME refuses
  *   identify   : 22 F1 01 (and 22 F1 02)      -> SVK entries, 8 bytes each: <type> 00 00 <id 2 bytes> <version 3 bytes>;
  *                MHD keys its addresses by the program (type 08, "PRGID") and calibration (type 0D, "CALID") entries
- *   define     : 2C 03 F3 04                  -> 6C 03 ..          clear our dynamic identifier
- *                2C 02 F3 04 14 <addr 4 bytes> 01 <addr 4 bytes> 01 -> 6C 02 F3 04      both bytes, one identifier
- *   read       : 22 F3 04                     -> 62 F3 04 <active> <can>   % ethanol, one byte each
+ *   define     : 2C 03 F3 03                  -> 6C 03 ..          clear our dynamic identifier
+ *                2C 02 F3 03 14 <addr 4 bytes> 01 <addr 4 bytes> 01 -> 6C 02 F3 03      both bytes, one identifier
+ *   read       : 22 F3 03                     -> 62 F3 03 <active> <can>   % ethanol, one byte each
  *
  * 0x23 ReadMemoryByAddress is refused on this DME (7F 23 10), so the dynamic identifier is the way.
- * MHD's app uses F300..F303 and clears them when it connects: this app uses F304. The DME forgets
- * the definition at an ignition cycle (then 22 F3 04 answers 7F 22 31): define it again.
+ * The DME has four dynamic identifiers, F300..F303 (F304 is refused with 7F 2C 31). MHD's app defines
+ * F300 and F302 and clears all four when it connects: this app takes F303, or F301 when F303 is refused
+ * (poller.js). The DME forgets the definition at an ignition cycle (then 22 F3 03 answers 7F 22 31):
+ * define it again.
  * The addresses are ROM dependent: PROFILES holds the ROMs they were verified on, keyed by PRGID + CALID.
  */
 const { replyTo, NRC, hex } = require('./kit/diag');

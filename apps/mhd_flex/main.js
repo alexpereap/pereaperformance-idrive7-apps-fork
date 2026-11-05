@@ -5,7 +5,8 @@
  * and "Ethanol Content (CAN)", what the flex fuel sensor reports, as two dials.
  *
  * Read-only: the app sends 2F 04 "MHD" (is MHD there), 22 F1 01 / F1 02 (which ROM), 2C 03 / 2C 02
- * F304 (its own dynamic identifier over the two bytes) and 22 F3 04 (the read). Nothing is written to
+ * F303 (its own dynamic identifier over the two bytes; F301 when F303 is refused) and 22 F3 03 (the
+ * read). Nothing is written to
  * the car; the identifier is the DME's volatile table and goes with the ignition. Protocol: protocol.js,
  * loop and states: poller.js, screen: ui.js. With "Demo data" on (or Auto without a diagnostic
  * transport, as in the emulator) the dials show made-up values and nothing is sent.
