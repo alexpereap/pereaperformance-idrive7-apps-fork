@@ -1805,5 +1805,21 @@
   "Eco Pro": "Эко Про",
   "Eco Pro+": "Эко Про+",
   "Eco Pro Individual": "Эко Про индивидуальный",
-  "Adaptive": "Адаптивный"
+  "Adaptive": "Адаптивный",
+  "Flex Fuel": "Флекс-топливо",
+  "Ethanol Content (Active)": "Содержание этанола (активное)",
+  "Ethanol Content (CAN)": "Содержание этанола (CAN)",
+  "Flex fuel active": "Флекс-топливо активно",
+  "Flex fuel disabled": "Флекс-топливо отключено",
+  "No diagnostic link": "Нет диагностической связи",
+  "Diagnostic link down": "Диагностическая связь потеряна",
+  "Looking for MHD on the DME": "Поиск MHD в DME",
+  "MHD not found on the DME": "MHD не найден в DME",
+  "Identifying the DME": "Идентификация DME",
+  "ROM not supported": "ROM не поддерживается",
+  "Defining data identifier": "Определение идентификатора данных",
+  "Waiting for the DME": "Ожидание ответа DME",
+  "NO MHD": "НЕТ MHD",
+  "OTHER ROM": "ДРУГОЙ ROM",
+  "DME ERROR": "ОШИБКА DME"
 }

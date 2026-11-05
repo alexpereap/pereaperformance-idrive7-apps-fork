@@ -618,7 +618,9 @@ function build() {
     App.waiting = null;
     setStatus('building');
     let outText = '';
-    const p = App.building = spawn('python3', [path.join(ROOT, 'kit', 'tools', 'build.py'), id], { cwd: ROOT });
+    // without BMW's SDK (oap-sdk/, extracted from your own unit) the offline preview build runs the app here just the same
+    const previewOnly = fs.existsSync(path.join(ROOT, 'oap-sdk', 'index.js')) ? [] : ['--preview-only'];
+    const p = App.building = spawn('python3', [path.join(ROOT, 'kit', 'tools', 'build.py')].concat(previewOnly, [id]), { cwd: ROOT });
     p.stdout.on('data', (d) => { outText += d; });
     p.stderr.on('data', (d) => { outText += d; });
     p.on('error', (e) => { outText += String(e); });

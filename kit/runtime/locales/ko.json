@@ -1856,5 +1856,21 @@
   "Eco Pro": "에코 프로",
   "Eco Pro+": "에코 프로 플러스",
   "Eco Pro Individual": "에코 프로 개별 설정",
-  "Adaptive": "어댑티브"
+  "Adaptive": "어댑티브",
+  "Flex Fuel": "플렉스 연료",
+  "Ethanol Content (Active)": "에탄올 함량 (적용)",
+  "Ethanol Content (CAN)": "에탄올 함량 (CAN)",
+  "Flex fuel active": "플렉스 연료 작동 중",
+  "Flex fuel disabled": "플렉스 연료 꺼짐",
+  "No diagnostic link": "진단 연결 없음",
+  "Diagnostic link down": "진단 연결 끊김",
+  "Looking for MHD on the DME": "DME에서 MHD 확인 중",
+  "MHD not found on the DME": "DME에 MHD가 없습니다",
+  "Identifying the DME": "DME 식별 중",
+  "ROM not supported": "지원되지 않는 ROM",
+  "Defining data identifier": "데이터 식별자 정의 중",
+  "Waiting for the DME": "DME 응답 대기 중",
+  "NO MHD": "MHD 없음",
+  "OTHER ROM": "다른 ROM",
+  "DME ERROR": "DME 오류"
 }

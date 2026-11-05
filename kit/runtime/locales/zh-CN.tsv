@@ -1659,3 +1659,20 @@ Comfort Individual	舒适个性化
 Eco Pro	节能
 Eco Pro+	节能+
 Eco Pro Individual	节能个性化
+# Flex Fuel (mhd_flex)
+Flex Fuel	灵活燃料
+Ethanol Content (Active)	乙醇含量（生效）
+Ethanol Content (CAN)	乙醇含量（CAN）
+Flex fuel active	灵活燃料已启用
+Flex fuel disabled	灵活燃料已关闭
+No diagnostic link	无诊断连接
+Diagnostic link down	诊断连接中断
+Looking for MHD on the DME	正在 DME 上查找 MHD
+MHD not found on the DME	DME 上未找到 MHD
+Identifying the DME	正在识别 DME
+ROM not supported	不支持此 ROM
+Defining data identifier	正在定义数据标识符
+Waiting for the DME	等待 DME 响应
+NO MHD	无 MHD
+OTHER ROM	其他 ROM
+DME ERROR	DME 错误
