@@ -135,7 +135,7 @@ python3 kit/tools/build.py mhd_flex
 ```
 
 ```sh
-node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.1.0.tgz
+node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.1.1.tgz
 ```
 
 The package lands in `<stick>/mgu-repo/local/` with a generated catalog; install it from the
