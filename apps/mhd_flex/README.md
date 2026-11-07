@@ -4,8 +4,10 @@ The ethanol content an **MHD-flashed DME** runs on, read over the head unit's ow
 link (InternalTasu, DME `0x12`) and shown as two dials: **Ethanol Content (Active)**, the value
 the tune uses, and **Ethanol Content (CAN)**, what the flex fuel sensor reports through MHD's
 CAN ethanol analyser. Under them a note says **Flex fuel active** (green) while the tune uses
-the ethanol, and **Flex fuel disabled** when Active reads 0 (a map without flex fuel). The app
-only reads; nothing is written to the car.
+the ethanol, and **Flex fuel disabled** when Active reads 0 (a map without flex fuel): in amber,
+with the sensor's reading, when CAN still sees ethanol. When Active and CAN are 10 points or more
+apart (the tune still blending after a fill-up, or a map that does not follow the sensor) the
+header says **MISMATCH**. The app only reads; nothing is written to the car.
 
 ![Flex Fuel](../../docs/screens/mhd_flex.png)
 
@@ -52,6 +54,8 @@ show `--`:
 | `NO MHD` | MHD not found on the DME | the DME refused `2F 04` "MHD"; probed again every 30 s |
 | `OTHER ROM` | ROM not supported, with the ids seen | MHD is there but no profile has this ROM's addresses; checked again every 60 s |
 | `LINK STALE` | | three reads in a row without an answer; polling slows to 1 Hz, after ten it starts over |
+| `MISMATCH` | Flex fuel active, *Active and CAN differ* | Active and CAN are 10 points or more apart (`GAP` in `ui.js`): the tune is still blending in the new fuel, or the map does not follow the sensor |
+| | Flex fuel disabled (amber), *Sensor reads N %* | Active is 0 while the sensor reads ethanol: a map without flex fuel, or one that ignores the sensor |
 | `DME ERROR` | Waiting for the DME | a refusal or a definition that will not hold; backoff, then start over |
 
 Code: `protocol.js` (bytes in and out, pure), `poller.js` (the states, one request in flight),
@@ -142,7 +146,7 @@ python3 kit/tools/build.py mhd_flex
 ```
 
 ```sh
-node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.2.0.tgz
+node mgu-store/deploy/mgu-install.js usb-repo /media/<your-stick> dist/mhd_flex@0.3.0.tgz
 ```
 
 The package lands in `<stick>/mgu-repo/local/` with a generated catalog; install it from the

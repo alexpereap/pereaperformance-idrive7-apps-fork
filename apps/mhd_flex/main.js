@@ -10,6 +10,9 @@
  * the car; the identifier is the DME's volatile table and goes with the ignition. Protocol: protocol.js,
  * loop and states: poller.js, screen: ui.js. With "Demo data" on (or Auto without a diagnostic
  * transport, as in the emulator) the dials show made-up values and nothing is sent.
+ * The screen flags two disagreements between the sensor and the tune (ui.js): "Flex fuel disabled"
+ * in amber when Active is 0 while CAN reads ethanol, and a MISMATCH badge when the two are 10 points
+ * or more apart.
  */
 const mgu = require('./kit/mgu');
 const G = require('./kit/gauges');
@@ -20,11 +23,16 @@ const { Poller } = require('./poller');
 const { DME, PROFILES } = require('./protocol');
 const LOGO = require('./logo');
 
-/** Demo values: a slow wander around 50-80 %, CAN a touch off Active, and 6 s in every 25 with Active at 0. */
+/**
+ * Demo values: a slow wander around 50-80 %, CAN a touch off Active, and in every 25 s a spell of
+ * 6 s with Active at 0 (the "disabled" note with the sensor still reading) and one of 6 s with CAN
+ * 25 points above Active (the MISMATCH badge).
+ */
 function demoValues(t) {
-    const active = Math.round(50 + 30 * Math.sin(t / 9000));
-    const can = Math.max(0, Math.min(100, Math.round(active + 2 * Math.sin(t / 2500))));
-    return { active: (t % 25000) < 6000 ? 0 : active, can };
+    const base = Math.round(50 + 30 * Math.sin(t / 9000));
+    const phase = t % 25000;
+    const can = phase >= 12000 && phase < 18000 ? base + 25 : base + 2 * Math.sin(t / 2500);
+    return { active: phase < 6000 ? 0 : base, can: Math.max(0, Math.min(100, Math.round(can))) };
 }
 
 mgu.run({

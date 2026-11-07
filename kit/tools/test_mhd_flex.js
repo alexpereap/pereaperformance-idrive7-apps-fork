@@ -159,11 +159,43 @@ async function steps(p, n) { for (let i = 0; i < n; i++) await p.step(); return 
         assert.strictEqual((await steps(p, 1), d.calls.length), 7);
         v = p.view();
         assert.deepStrictEqual([v.active, v.can], [0, 12]);
-        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel disabled', t.dim]);
+        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel disabled', t.warn], 'Active 0 while the sensor reads ethanol: amber');
         assert.strictEqual(UI.badge(v, t), null, 'no badge while live');
+        assert.deepStrictEqual(UI.detail(v, t), { text: 'Sensor reads 12 %', colour: t.warn, literal: false });
         await steps(p, 3);
         assert.strictEqual(d.calls.length, 7, 'reads are paced by pollMs');
         assert.strictEqual(d.maxInflight, 1);
+
+        /* the disagreements between the sensor and the tune */
+        const read = async (values) => { d.values = values; p.clock.t += 500; await steps(p, 1); return p.view(); };
+        v = await read([0, 0]);
+        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel disabled', t.dim], 'Active 0 and no ethanol at the sensor: plain');
+        assert.strictEqual(UI.detail(v, t).text, P.PROFILES[0].name + '  ·  F303');
+        v = await read([45, 70]);
+        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel active', UI.GO]);
+        assert.deepStrictEqual(UI.badge(v, t), { text: 'MISMATCH', color: t.warn }, '25 points apart');
+        assert.deepStrictEqual(UI.detail(v, t), { text: 'Active and CAN differ', colour: t.warn, literal: false });
+        v = await read([70, 61]);
+        assert.strictEqual(UI.badge(v, t), null, '9 points apart is not a mismatch');
+        assert.ok(UI.detail(v, t).literal, 'the profile line again');
+        v = await read([60, 70]);
+        assert.strictEqual(UI.badge(v, t).text, 'MISMATCH', 'the gap counts either way');
+        v = await read([0, 40]);
+        assert.strictEqual(UI.badge(v, t), null, 'Active 0 is "disabled", never a mismatch');
+        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel disabled', t.warn]);
+        v = await read([0xFF, 70]);
+        assert.deepStrictEqual([v.active, v.can], [null, 70]);
+        assert.deepStrictEqual(UI.note(v, t), ['Waiting for the DME', t.dim], 'an unreadable Active is not "disabled"');
+        assert.strictEqual(UI.badge(v, t), null);
+        assert.ok(/^22F303 -> 62F303FF46$/.test(UI.detail(v, t).text), UI.detail(v, t).text);
+        v = await read([85, 0xFF]);
+        assert.strictEqual(UI.badge(v, t), null, 'an unreadable CAN is not a mismatch');
+        assert.deepStrictEqual(UI.note(v, t), ['Flex fuel active', UI.GO]);
+        v = await read([85, 83]);
+        assert.strictEqual(UI.badge(v, t), null);
+        assert.strictEqual(p.state, 'reading');
+        v.stale = true; v.can = 20;
+        assert.strictEqual(UI.badge(v, t).text, 'LINK STALE', 'stale wins over the mismatch');
     }
 
     /* ---------- a stock DME: refused, nothing else is sent, probed again after 30 s ---------- */
@@ -299,6 +331,11 @@ async function steps(p, n) { for (let i = 0; i < n; i++) await p.step(); return 
             play(r.words(), new Canvas(UI.W, UI.H));      // the software path: the recording played into a canvas
         }
         UI.draw(new Recorder(UI.W, UI.H), G, t, { state: 'reading', active: 70, can: 72, demo: true }, LOGO);
+        [[45, 70], [0, 12], [null, 70], [85, null]].forEach(([active, can]) => {
+            const r = new Recorder(UI.W, UI.H);
+            UI.draw(r, G, t, { state: 'reading', active, can, stale: false, mhd: { version: '0120' }, profile: P.PROFILES[0].name, did: 'F303', lastReply: '22F303 -> 62F303FF46', demo: false }, LOGO);
+            play(r.words(), new Canvas(UI.W, UI.H));
+        });
     }
     assert.ok(LOGO.w === 180 && LOGO.h > 40 && LOGO.runs.length > 100 && LOGO.palette.every((c) => /^#[0-9a-f]{8}$/.test(c)));
 

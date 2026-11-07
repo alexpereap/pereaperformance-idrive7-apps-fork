@@ -1676,3 +1676,6 @@ Waiting for the DME	等待 DME 响应
 NO MHD	无 MHD
 OTHER ROM	其他 ROM
 DME ERROR	DME 错误
+MISMATCH	不一致
+Active and CAN differ	生效值与 CAN 值不一致
+Sensor reads	传感器读数

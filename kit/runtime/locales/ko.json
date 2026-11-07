@@ -1872,5 +1872,8 @@
   "Waiting for the DME": "DME 응답 대기 중",
   "NO MHD": "MHD 없음",
   "OTHER ROM": "다른 ROM",
-  "DME ERROR": "DME 오류"
+  "DME ERROR": "DME 오류",
+  "MISMATCH": "불일치",
+  "Active and CAN differ": "적용값과 CAN 값이 다릅니다",
+  "Sensor reads": "센서 측정값"
 }

@@ -1821,5 +1821,8 @@
   "Waiting for the DME": "Ожидание ответа DME",
   "NO MHD": "НЕТ MHD",
   "OTHER ROM": "ДРУГОЙ ROM",
-  "DME ERROR": "ОШИБКА DME"
+  "DME ERROR": "ОШИБКА DME",
+  "MISMATCH": "РАСХОЖДЕНИЕ",
+  "Active and CAN differ": "Активное и CAN расходятся",
+  "Sensor reads": "Датчик показывает"
 }
